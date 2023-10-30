@@ -14,7 +14,8 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 def main():
     return render_template('index.html')
 
-
+def hex_to_4(hex_string):
+    return int(hex_string[0:2], 16), int(hex_string[2:4], 16), int(hex_string[4:6], 16), int(hex_string[6:8], 16)
 # upload selected image and forward to processing page
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -38,15 +39,13 @@ def upload():
     destination = "/".join([target, filename])
     upload.save(destination)
     hex_strings = np.loadtxt(destination, usecols=1, dtype='str')
-    numbers = np.array([int(hex_str[:6],16) for hex_str in hex_strings])
-    numbers = numbers.reshape(-1,128)
-    a = numbers >> 16
-    b = numbers >> 8 & 0xFF
-    c = numbers & 0xFF
-    out = np.concatenate((a,b,c),axis=1)
-    out = np.array(out,dtype=np.uint8)
+    numbers = np.array([hex_to_4(hex_string) for hex_string in hex_strings])
+    numbers = numbers.reshape(-1, 16)
+    numbers = numbers.T
+    numbers = numbers.reshape(2048,2048).T
+    numbers = numbers.astype(np.uint8)
     destination = "/".join([target, 'temp.png'])
-    image = Image.fromarray(out)
+    image = Image.fromarray(numbers)
     # save file
     image.save(destination)
     print("File saved to to:", destination)
