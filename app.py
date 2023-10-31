@@ -7,13 +7,11 @@ import numpy as np
 app = Flask(__name__)
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-
-
+z = ((np.arange(2048) % 128)*16 + np.arange(2048)//128).astype(int)
 # default access page
 @app.route("/")
 def main():
     return render_template('index.html')
-
 def hex_to_4(hex_string):
     return int(hex_string[0:2], 16), int(hex_string[2:4], 16), int(hex_string[4:6], 16), int(hex_string[6:8], 16)
 # upload selected image and forward to processing page
@@ -29,8 +27,6 @@ def upload():
     upload = request.files.getlist("file")[0]
     print("File name: {}".format(upload.filename))
     filename = upload.filename
-
-    # file support verification
     ext = os.path.splitext(filename)[1]
     if (ext == ".txt"):
         print("File accepted")
@@ -38,18 +34,15 @@ def upload():
         return render_template("error.html", message="The selected file is not supported"), 400
     destination = "/".join([target, filename])
     upload.save(destination)
+
     hex_strings = np.loadtxt(destination, usecols=1, dtype='str')
     numbers = np.array([hex_to_4(hex_string) for hex_string in hex_strings])
-    numbers = numbers.reshape(-1, 16)
-    numbers = numbers.T
-    numbers = numbers.reshape(2048,2048).T
-    numbers = numbers.astype(np.uint8)
+    numbers = numbers.reshape(-1, 16).reshape(2048,2048)[:, z].astype(np.uint8)
+    
     destination = "/".join([target, 'temp.png'])
     image = Image.fromarray(numbers)
-    # save file
     image.save(destination)
     print("File saved to to:", destination)
-    # forward to processing page
     return render_template("processing.html", image_name='temp.png')
 
 
@@ -204,5 +197,6 @@ def send_image(filename):
 
 
 if __name__ == "__main__":
-    app.run(port=8080)
+    from waitress import serve
+    app.run(port=8080,debug=True)
 
